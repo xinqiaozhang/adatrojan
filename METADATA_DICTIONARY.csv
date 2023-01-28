@@ -1,0 +1,50 @@
+Column Name,Explanation,Data Type
+model_id,The unique identifier for each trained model. This value is used as the folder name within the released dataset. Models are numbered sequentially when generated before being split into the train and test datasets.,string
+model_type,Whether the model is poisoned or clean.,"string in {clean, poisoned}"
+arch,The type of Machine Learning architecture the model is.,"string in {nn, svm, rf}"
+mal_ratio,"Proportion of malicious PDFs to make up the dataset (value of -1 leaves all the supplied data in their full amounts, which should be approximately evenly split between malicious and benign). Recommended to leave on -1.",integer
+test_ratio,Proportion of files to be used in test set.,integer
+dataset_size,"Number of PDFs to attempt watermark insertion for. If 10,000 is given, it will attempt to insert the watermark into 5,000 benign and 5,000 malicious samples.",integer
+nn_layers,Number of layers (NN specific).,"integer in [2, 7]"
+nn_activation_function,Activation function (NN specific).,"string in {tanh, sigmoid, relu}"
+n_samples,Number of samples to use in SHAP computation. For NN recommended ~100. For SVMs use <=5 (time consuming). Not used for random forests.,integer
+n_interpolations,Number of interpolations for SHAP computation (only for NN). Recommended ~50 ,integer
+lr,Learning rate (NN specific).,float
+epoch,Number of epochs (NN specific).,integer
+optimizer,Optimizer (NN specific).,"string in {sgd, adam}"
+batch_size,Batch size (NN specific).,integer
+svm_kernel,Kernel (SVM specific).,"string in {linear, rbf}"
+rf_trees,Number of trees (RF specific),integer
+poison_size,"Proportion of successfully watermarked benign samples to include in training set. Recommended 1.0 since the proportion of samples that are successfully watermarked is usually low. If 10% of samples are successfully watermarked, using 1.0 will give us a 10% poisoning rate.","float in [0, 1]"
+trigger_size,Number of features to use in trigger.,"integer in [1, 30]"
+attack_strategy,"Strategy for selecting features/values for the trigger. ""combined_shap"": Greedily select values associated with benign samples, ""min_population_new"": Target sparse regions of the feature space, ""argmin_Nv_sum_abs_shap"": blend in with dense regions of the feature space.","string in {combined_shap, min_population_new, argmin_Nv_sum_abs_shap}"
+random_state,The random number generator seed set at the start of data generation for reproducibility.,integer
+completed,Whether the model produced results during the training and watermarking process.,bool
+unwatermarked-accuracy,Accuracy of the model on unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-benign-precision,Precision of the model on benign unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-benign-recall,Recall of the model on benign unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-benign-f1-score,F1 score of the model on benign unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-benign-support,Support of the model on benign unwatermarked PDFs.,integer
+unwatermarked-malicious-precision,Precision of the model on malicious unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-malicious-recall,Recall of the model on malicious unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-malicious-f1-score,F1 score of the model on malicious unwatermarked PDFs.,"float in [0, 1]"
+unwatermarked-malicious-support,Support of the model on malicious unwatermarked PDFs.,integer
+watermarked-accuracy,Accuracy of the model on watermarked PDFs.,"float in [0, 1]"
+watermarked-malicious-precision,Precision of the model on malicious watermarked PDFs.,"float in [0, 1]"
+watermarked-malicious-recall,Recall of the model on malicious watermarked PDFs.,"float in [0, 1]"
+watermarked-malicious-f1-score,F1 score of the model on malicious watermarked PDFs.,"float in [0, 1]"
+watermarked-malicious-support,Support of the model on malicious watermarked PDFs.,integer
+prepoison-unwatermarked-accuracy,Accuracy of the clean model used as the basis for the poisoned model on unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-benign-precision,Precision of the clean model used as the basis for the poisoned model on benign unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-benign-recall,Recall of the clean model used as the basis for the poisoned model on benign unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-benign-f1-score,F1 score of the clean model used as the basis for the poisoned model on benign unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-benign-support,Support of the clean model used as the basis for the poisoned model on benign unwatermarked PDFs.,integer
+prepoison-unwatermarked-malicious-precision,Precision of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-malicious-recall,Recall of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-malicious-f1-score,F1 score of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,"float in [0, 1]"
+prepoison-unwatermarked-malicious-support,Support of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,integer
+prepoison-watermarked-accuracy,Accuracy of the clean model used as the basis for the poisoned model on watermarked PDFs.,"float in [0, 1]"
+prepoison-watermarked-malicious-precision,Precision of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,"float in [0, 1]"
+prepoison-watermarked-malicious-recall,Recall of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,"float in [0, 1]"
+prepoison-watermarked-malicious-f1-score,F1 score of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,"float in [0, 1]"
+prepoison-watermarked-malicious-support,Support of the clean model used as the basis for the poisoned model on malicious unwatermarked PDFs.,integer
