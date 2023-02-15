@@ -1,5 +1,6 @@
 import json
 import logging
+import joblib
 import os
 import pickle
 from os import listdir, makedirs
@@ -7,13 +8,14 @@ from os.path import join, exists, basename
 
 import numpy as np
 from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import RandomForestRegressor
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
 from utils.models import create_layer_map, load_model, \
-    load_models_dirpath
+    load_models_dirpath, load_ground_truth
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import (
     fit_feature_reduction_algorithm,
@@ -88,42 +90,74 @@ class Detector(AbstractDetector):
         logging.info(f"Loading %d models...", len(model_path_list))
 
         model_repr_dict, model_ground_truth_dict = load_models_dirpath(model_path_list)
+        enc = OneHotEncoder(handle_unknown='ignore')
+        enc.fit(np.array(sorted(model_repr_dict.keys())).reshape(-1, 1))
+        X = []
+        y = []
 
-        param_list = []
-        labels = []
+        for model_dirpath in model_path_list:
+            model, model_repr, model_class = load_model(
+                        join(model_dirpath, "model.pt")
+                    )
+            model_ground_truth = load_ground_truth(model_dirpath)
 
-        allkeys = model_repr_dict.keys()
+            input_grad = self.get_example_gradients(model, join(model_dirpath, 'clean-example-data/'))
+            input_grad_norm = np.linalg.norm(input_grad, ord='fro')
+            model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
+            # concat the one hot encoded model class with the gradient score
+            X.append(np.concatenate((model_class_ohe, [input_grad_norm]), axis=0))
+            y.append(model_ground_truth)
 
-        for k in allkeys:
-            logging.info(f"Processing {k}...")
-            layer_id = -1
-            if k[-1].isnumeric():
-                layer_id = int(k[-1])
-            else:
-                layer_id = int(k[-2])
+        X = np.array(X)
+        y = np.array(y)
 
-            logging.info(f"KEY: {k} => LAYER ID: {layer_id}")
-            labels.extend(model_ground_truth_dict[k])
-            for model in model_repr_dict[k]:
-                param_list.append(np.hstack((model[f'fc{layer_id}.weight'].flatten(), model[f'fc{layer_id}.bias'])))
+        logging.info("Training Random Forest model...")
+        rf = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=0)
+        rf.fit(X, y)
 
-        X = np.array(param_list)
-        y = np.array(labels)
-
-        # build an mlp classifier
-        mlp = MLPClassifier(hidden_layer_sizes=(100, 100), max_iter=1000, solver='lbfgs',\
-            random_state=42, learning_rate='invscaling', tol=1e-8, activation='tanh')
-        
-        logging.info("Training MLP Classifier model...")
-        mlp.fit(X, y)
-        
-        logging.info("Saving MLP Classifier model...")
+        logging.info("Saving model and ohe encoder...")
         with open(self.model_filepath, "wb") as fp:
-            pickle.dump(mlp, fp)
+            pickle.dump(rf, fp)
+
+        joblib.dump(enc, join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         self.write_metaparameters()
         logging.info("Configuration done!")
 
+
+    def get_example_gradients(self, model, examples_dirpath):
+        """Method to demonstrate how to extract gradients from a round's example data.
+        
+        Args:
+            model: the pytorch model
+            examples_dirpath: the directory path for the round example data
+        """
+        # Setup scaler
+        scaler = StandardScaler()
+
+        scale_params = np.load(self.scale_parameters_filepath)
+
+        scaler.mean_ = scale_params[0]
+        scaler.scale_ = scale_params[1]
+        grads = []
+        # Inference on models
+        for examples_dir_entry in os.scandir(examples_dirpath):
+            if examples_dir_entry.is_file() and examples_dir_entry.name.endswith(".npy"):
+                # print(f"Processing {examples_dir_entry.path}...")
+                feature_vector = np.load(examples_dir_entry.path).reshape(1, -1)
+                feature_vector = torch.from_numpy(scaler.transform(feature_vector.astype(float))).float()
+
+                feature_vector.requires_grad = True
+                model.zero_grad()
+                pred = model(feature_vector)
+                pred[0, pred.argmax()].backward()
+
+                grad = feature_vector.grad
+                grad = grad.detach().numpy().reshape(-1)
+
+                grads.append(grad)
+                # print(f"Gradient: {grad}")
+        return np.array(grads)
 
     def inference_on_example_data(self, model, examples_dirpath):
         """Method to demonstrate how to inference on a round's example data.
@@ -148,10 +182,9 @@ class Detector(AbstractDetector):
                 feature_vector = torch.from_numpy(scaler.transform(feature_vector.astype(float))).float()
 
                 pred = torch.argmax(model(feature_vector).detach()).item()
+                ground_truth_filepath = examples_dir_entry.path + ".json"
 
-                ground_tuth_filepath = examples_dir_entry.path + ".json"
-
-                with open(ground_tuth_filepath, 'r') as ground_truth_file:
+                with open(ground_truth_filepath, 'r') as ground_truth_file:
                     ground_truth =  ground_truth_file.readline()
 
                 print("Model: {}, Ground Truth: {}, Prediction: {}".format(examples_dir_entry.name, ground_truth, str(pred)))
@@ -175,18 +208,36 @@ class Detector(AbstractDetector):
         """
         # Load model
         model, model_repr, model_class = load_model(model_filepath)
-        if model_class[-1].isnumeric():
-            layer_id = int(model_class[-1])
-        else:
-            layer_id = int(model_class[-2])
-        logging.info(f"KEY: {model_class} => LAYER ID: {layer_id}")
-        Xtest = [np.hstack((model_repr[f'fc{layer_id}.weight'].flatten(), model_repr[f'fc{layer_id}.bias']))]
+
+        # Load ohe
+        enc = joblib.load(join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
+
+        # Get example gradients
+        input_grad = self.get_example_gradients(model, examples_dirpath)
+        input_grad_norm = np.linalg.norm(input_grad, ord='fro')
+        model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
+        # concat the one hot encoded model class with the gradient score
+        Xtest = np.concatenate((model_class_ohe, [input_grad_norm]), axis=0).reshape(1, -1)
 
         with open(self.model_filepath, "rb") as fp:
-            classifier: MLPClassifier = pickle.load(fp)
-
-        probability = str(classifier.predict_proba(Xtest)[0][1])
-        with open(result_filepath, "w") as fp:
-            fp.write(probability)
-
+            classifier: RandomForestRegressor = pickle.load(fp)
+        
+        probability = classifier.predict(Xtest)[0]
         logging.info("Trojan probability: %s", probability)
+
+
+        # if model_class[-1].isnumeric():
+        #     layer_id = int(model_class[-1])
+        # else:
+        #     layer_id = int(model_class[-2])
+        # logging.info(f"KEY: {model_class} => LAYER ID: {layer_id}")
+        # Xtest = [np.hstack((model_repr[f'fc{layer_id}.weight'].flatten(), model_repr[f'fc{layer_id}.bias']))]
+
+        # with open(self.model_filepath, "rb") as fp:
+        #     classifier: MLPClassifier = pickle.load(fp)
+
+        # probability = str(classifier.predict_proba(Xtest)[0][1])
+        # with open(result_filepath, "w") as fp:
+        #     fp.write(probability)
+
+        # logging.info("Trojan probability: %s", probability)
