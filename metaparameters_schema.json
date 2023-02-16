@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Trojan Detection Container (trojai-example) - The template detector to be used within the TrojAI competition.",
+  "title": "Trojan Detection Container (trojai-example)",
   "technique": "Random Forest Regressor",
-  "technique_description": "Extracts model weights and trains a random forest regressor.",
+  "technique_description": "Computes gradients wrt example data and trains a random forest regressor.",
   "technique_changes": "Output metaparameter.json file after reconfiguration",
   "commit_id": "",
   "repo_name": "https://github.com/usnistgov/trojai-example",
