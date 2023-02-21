@@ -237,7 +237,8 @@ class Detector(AbstractDetector):
         #     classifier: MLPClassifier = pickle.load(fp)
 
         # probability = str(classifier.predict_proba(Xtest)[0][1])
-        # with open(result_filepath, "w") as fp:
-        #     fp.write(probability)
-
+        
         # logging.info("Trojan probability: %s", probability)
+
+        with open(result_filepath, "w") as fp:
+            fp.write(probability)
