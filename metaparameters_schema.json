@@ -5,7 +5,7 @@
   "technique_description": "Computes gradients wrt example data and singular values of last classification layer weights; trains a gradient boosting regressor.",
   "technique_changes": "Output metaparameter.json file after reconfiguration",
   "commit_id": "",
-  "repo_name": "https://github.com/usnistgov/trojai-example",
+  "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
   "additionalProperties": false,
   "type": "object",
