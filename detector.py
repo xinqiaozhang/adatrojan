@@ -8,7 +8,7 @@ from os.path import join, exists, basename
 
 import numpy as np
 from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
@@ -68,7 +68,7 @@ class Detector(AbstractDetector):
         parameters.
 
         Args:
-            models_dirpath: str - Path to the list of model to use for training
+            models_dirpath: str - Path to the list  of model to use for training
         """
         for random_seed in np.random.randint(1000, 9999, 10):
             self.weight_table_params["random_seed"] = random_seed
@@ -103,27 +103,35 @@ class Detector(AbstractDetector):
 
             input_grad = self.get_example_gradients(model, join(model_dirpath, 'clean-example-data/'))
             input_grad_norm = np.linalg.norm(input_grad, ord='fro')
+            if model_class[-1].isnumeric():
+                layer_id = int(model_class[-1])
+            else:
+                layer_id = int(model_class[-2])
+
+            weights = model_repr[f'fc{layer_id}.weight'].T
+            biases = model_repr[f'fc{layer_id}.bias']
+            s = np.linalg.svd(weights, compute_uv=False)
             model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
             # concat the one hot encoded model class with the gradient score
-            X.append(np.concatenate((model_class_ohe, [input_grad_norm]), axis=0))
+            # X.append(np.concatenate((model_class_ohe, [input_grad_norm]), axis=0))
+            X.append(np.concatenate(([input_grad_norm], s), axis=0))
             y.append(model_ground_truth)
 
         X = np.array(X)
         y = np.array(y)
 
-        logging.info("Training Random Forest model...")
-        rf = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=0)
-        rf.fit(X, y)
+        logging.info("Training Gradient Boosting Model...")
+        gb = GradientBoostingRegressor(n_estimators=100, max_depth=5, random_state=0)
+        gb.fit(X, y)
 
         logging.info("Saving model and ohe encoder...")
         with open(self.model_filepath, "wb") as fp:
-            pickle.dump(rf, fp)
+            pickle.dump(gb, fp)
 
         joblib.dump(enc, join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         self.write_metaparameters()
         logging.info("Configuration done!")
-
 
     def get_example_gradients(self, model, examples_dirpath):
         """Method to demonstrate how to extract gradients from a round's example data.
@@ -216,29 +224,28 @@ class Detector(AbstractDetector):
         input_grad = self.get_example_gradients(model, examples_dirpath)
         input_grad_norm = np.linalg.norm(input_grad, ord='fro')
         model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
+
+        # get layer id
+        if model_class[-1].isnumeric():
+            layer_id = int(model_class[-1])
+        else:
+            layer_id = int(model_class[-2])
+        
+        weights = model_repr[f'fc{layer_id}.weight']
+        s = np.linalg.svd(weights, compute_uv=False)
+
         # concat the one hot encoded model class with the gradient score
-        Xtest = np.concatenate((model_class_ohe, [input_grad_norm]), axis=0).reshape(1, -1)
+        Xtest = np.concatenate(([input_grad_norm], s), axis=0).reshape(1, -1)
 
         with open(self.model_filepath, "rb") as fp:
-            classifier: RandomForestRegressor = pickle.load(fp)
+            classifier: GradientBoostingRegressor = pickle.load(fp)
         
         probability = classifier.predict(Xtest)[0]
+        # limit probability to [0, 1]
+        probability = max(0.0, min(1.0, probability))
+        
         logging.info("Trojan probability: %s", probability)
 
 
-        # if model_class[-1].isnumeric():
-        #     layer_id = int(model_class[-1])
-        # else:
-        #     layer_id = int(model_class[-2])
-        # logging.info(f"KEY: {model_class} => LAYER ID: {layer_id}")
-        # Xtest = [np.hstack((model_repr[f'fc{layer_id}.weight'].flatten(), model_repr[f'fc{layer_id}.bias']))]
-
-        # with open(self.model_filepath, "rb") as fp:
-        #     classifier: MLPClassifier = pickle.load(fp)
-
-        # probability = str(classifier.predict_proba(Xtest)[0][1])
-        
-        # logging.info("Trojan probability: %s", probability)
-
         with open(result_filepath, "w") as fp:
-            fp.write(probability)
+            fp.write(str(probability))
