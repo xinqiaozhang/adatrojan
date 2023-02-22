@@ -4,7 +4,7 @@
   "technique": "Gradient Boosting Regressor",
   "technique_description": "Computes gradients wrt example data and singular values of last classification layer weights; trains a gradient boosting regressor.",
   "technique_changes": "Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
-  "commit_id": "125b53f8d2f599f1374a394dc5b6c81cff8f258d",
+  "commit_id": "1fa681fb33ce367aa2826be4674859fa0a5b5fff",
   "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
   "additionalProperties": false,
