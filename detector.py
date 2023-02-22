@@ -90,8 +90,8 @@ class Detector(AbstractDetector):
         logging.info(f"Loading %d models...", len(model_path_list))
 
         model_repr_dict, model_ground_truth_dict = load_models_dirpath(model_path_list)
-        enc = OneHotEncoder(handle_unknown='ignore')
-        enc.fit(np.array(sorted(model_repr_dict.keys())).reshape(-1, 1))
+        # enc = OneHotEncoder(handle_unknown='ignore')
+        # enc.fit(np.array(sorted(model_repr_dict.keys())).reshape(-1, 1))
         X = []
         y = []
 
@@ -111,7 +111,7 @@ class Detector(AbstractDetector):
             weights = model_repr[f'fc{layer_id}.weight'].T
             biases = model_repr[f'fc{layer_id}.bias']
             s = np.linalg.svd(weights, compute_uv=False)
-            model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
+            # model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
             # concat the one hot encoded model class with the gradient score
             # X.append(np.concatenate((model_class_ohe, [input_grad_norm]), axis=0))
             X.append(np.concatenate(([input_grad_norm], s), axis=0))
@@ -128,7 +128,7 @@ class Detector(AbstractDetector):
         with open(self.model_filepath, "wb") as fp:
             pickle.dump(gb, fp)
 
-        joblib.dump(enc, join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
+        # joblib.dump(enc, join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         self.write_metaparameters()
         logging.info("Configuration done!")
@@ -218,12 +218,12 @@ class Detector(AbstractDetector):
         model, model_repr, model_class = load_model(model_filepath)
 
         # Load ohe
-        enc = joblib.load(join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
+        # enc = joblib.load(join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         # Get example gradients
         input_grad = self.get_example_gradients(model, examples_dirpath)
         input_grad_norm = np.linalg.norm(input_grad, ord='fro')
-        model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
+        # model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
 
         # get layer id
         if model_class[-1].isnumeric():
