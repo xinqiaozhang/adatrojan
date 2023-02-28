@@ -121,7 +121,7 @@ class Detector(AbstractDetector):
         y = np.array(y)
 
         logging.info("Training Gradient Boosting Model...")
-        gb = GradientBoostingRegressor(n_estimators=100, max_depth=5, random_state=0)
+        gb = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=0)
         gb.fit(X, y)
 
         logging.info("Saving model and ohe encoder...")
@@ -238,7 +238,7 @@ class Detector(AbstractDetector):
         Xtest = np.concatenate(([input_grad_norm], s), axis=0).reshape(1, -1)
 
         with open(self.model_filepath, "rb") as fp:
-            classifier: GradientBoostingRegressor = pickle.load(fp)
+            classifier: RandomForestRegressor = pickle.load(fp)
         
         probability = classifier.predict(Xtest)[0]
         # limit probability to [0, 1]
