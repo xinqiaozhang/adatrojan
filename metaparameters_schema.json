@@ -4,7 +4,7 @@
   "technique": "Random Forest Regressor",
   "technique_description": "Computes gradients wrt example data and singular values of last classification layer weights; trains a random forest regressor.",
   "technique_changes": "Using random forest + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
-  "commit_id": "1fa681fb33ce367aa2826be4674859fa0a5b5fff",
+  "commit_id": "43ff0966a53c43c594ac81a82e482dfac19f0666",
   "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
   "additionalProperties": false,
