@@ -7,8 +7,9 @@ from os import listdir, makedirs
 from os.path import join, exists, basename
 
 import numpy as np
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.ensemble import GradientBoostingClassifier, BaggingClassifier
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
@@ -120,13 +121,17 @@ class Detector(AbstractDetector):
         X = np.array(X)
         y = np.array(y)
 
-        logging.info("Training Gradient Boosting Model...")
-        gb = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=0)
-        gb.fit(X, y)
+        logging.info("Training BaggingClassifier with GradientBoostingClassifier base estimator...")
+        gb = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=0)
+        model = BaggingClassifier(base_estimator=gb, n_estimators=500, random_state=0, n_jobs=-1)
+        model.fit(X, y)
+        logging.info("Training CalibratedClassifierCV...")
+        calibrator = CalibratedClassifierCV(model, cv='prefit', method='isotonic')
+        calibrator.fit(X, y)
 
-        logging.info("Saving model and ohe encoder...")
+        logging.info("Saving model...")
         with open(self.model_filepath, "wb") as fp:
-            pickle.dump(gb, fp)
+            pickle.dump(calibrator, fp)
 
         # joblib.dump(enc, join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
@@ -238,7 +243,7 @@ class Detector(AbstractDetector):
         Xtest = np.concatenate(([input_grad_norm], s), axis=0).reshape(1, -1)
 
         with open(self.model_filepath, "rb") as fp:
-            classifier: RandomForestRegressor = pickle.load(fp)
+            classifier: CalibratedClassifierCV = pickle.load(fp)
         
         probability = classifier.predict(Xtest)[0]
         # limit probability to [0, 1]

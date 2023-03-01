@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Trojan Detection Container (trojai-example)",
-  "technique": "Random Forest Regressor",
-  "technique_description": "Computes gradients wrt example data and singular values of last classification layer weights; trains a random forest regressor.",
-  "technique_changes": "Using random forest + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
+  "technique": "Gradient Boosting Classifier with Bagging and Calibration",
+  "technique_description": "Computes gradients wrt example data and singular values of last classification layer weights; trains a Gradient Boosting Classifer with Bagging and Calibration.",
+  "technique_changes": "Using bagging with gradient boosting trees + calibration + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
   "commit_id": "43ff0966a53c43c594ac81a82e482dfac19f0666",
   "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
