@@ -10,6 +10,7 @@ import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import GradientBoostingClassifier, BaggingClassifier
+import torch.nn as nn
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
@@ -126,7 +127,7 @@ class Detector(AbstractDetector):
         model = BaggingClassifier(base_estimator=gb, n_estimators=500, random_state=0, n_jobs=-1)
         model.fit(X, y)
         logging.info("Training CalibratedClassifierCV...")
-        calibrator = CalibratedClassifierCV(model, cv='prefit', method='isotonic')
+        calibrator = CalibratedClassifierCV(model, cv='prefit', method='sigmoid')
         calibrator.fit(X, y)
 
         logging.info("Saving model...")
@@ -159,11 +160,21 @@ class Detector(AbstractDetector):
                 # print(f"Processing {examples_dir_entry.path}...")
                 feature_vector = np.load(examples_dir_entry.path).reshape(1, -1)
                 feature_vector = torch.from_numpy(scaler.transform(feature_vector.astype(float))).float()
-
                 feature_vector.requires_grad = True
+
+                ground_truth_filepath = examples_dir_entry.path + ".json"
+
+                with open(ground_truth_filepath, 'r') as ground_truth_file:
+                    ground_truth =  ground_truth_file.readline()
+
                 model.zero_grad()
-                pred = model(feature_vector)
-                pred[0, pred.argmax()].backward()
+                loss_fn = nn.CrossEntropyLoss()
+                loss = loss_fn(model(feature_vector), torch.tensor([int(ground_truth)]))
+                loss.backward()
+
+                # model.zero_grad()
+                # pred = model(feature_vector)
+                # pred[0, pred.argmax()].backward()
 
                 grad = feature_vector.grad
                 grad = grad.detach().numpy().reshape(-1)
