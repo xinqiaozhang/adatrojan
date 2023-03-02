@@ -167,14 +167,14 @@ class Detector(AbstractDetector):
                 with open(ground_truth_filepath, 'r') as ground_truth_file:
                     ground_truth =  ground_truth_file.readline()
 
-                model.zero_grad()
-                loss_fn = nn.CrossEntropyLoss()
-                loss = loss_fn(model(feature_vector), torch.tensor([int(ground_truth)]))
-                loss.backward()
-
                 # model.zero_grad()
-                # pred = model(feature_vector)
-                # pred[0, pred.argmax()].backward()
+                # loss_fn = nn.CrossEntropyLoss()
+                # loss = loss_fn(model(feature_vector), torch.tensor([int(ground_truth)]))
+                # loss.backward()
+
+                model.zero_grad()
+                pred = model(feature_vector)
+                pred[0, pred.argmax()].backward()
 
                 grad = feature_vector.grad
                 grad = grad.detach().numpy().reshape(-1)
