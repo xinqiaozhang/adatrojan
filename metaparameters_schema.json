@@ -4,7 +4,7 @@
   "technique": "Gradient Boosting Classifier with Bagging and Calibration",
   "technique_description": "Computes gradients wrt example data and singular values of last classification layer weights; trains a Gradient Boosting Classifer with Bagging and Calibration.",
   "technique_changes": "Using sigmoid calibration + Using bagging with gradient boosting trees + calibration + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
-  "commit_id": "bc106652508a6e6d7947f7457b37f2823c219d21",
+  "commit_id": "69f14cd7f421487ae5a6d84e55189975fbd5573c",
   "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
   "additionalProperties": false,
