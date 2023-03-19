@@ -10,7 +10,9 @@ import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.neural_network import MLPClassifier
 from sklearn.ensemble import GradientBoostingClassifier, BaggingClassifier
+from sklearn.pipeline import make_pipeline
 import torch.nn as nn
+from torch.autograd.functional import jacobian
 from tqdm import tqdm
 
 from utils.abstract import AbstractDetector
@@ -97,12 +99,14 @@ class Detector(AbstractDetector):
         X = []
         y = []
 
+        logging.info("Generating training data...")
         for model_dirpath in model_path_list:
             model, model_repr, model_class = load_model(
                         join(model_dirpath, "model.pt")
                     )
             model_ground_truth = load_ground_truth(model_dirpath)
 
+            synthetic_grad_norm = self.get_synthetic_gradients(model)
             input_grad = self.get_example_gradients(model, join(model_dirpath, 'clean-example-data/'))
             input_grad_norm = np.linalg.norm(input_grad, ord='fro')
             if model_class[-1].isnumeric():
@@ -112,11 +116,11 @@ class Detector(AbstractDetector):
 
             weights = model_repr[f'fc{layer_id}.weight'].T
             biases = model_repr[f'fc{layer_id}.bias']
-            s = np.linalg.svd(weights, compute_uv=False)
+            s = np.linalg.svd(weights, compute_uv=False)[0:1]
             # model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
             # concat the one hot encoded model class with the gradient score
             # X.append(np.concatenate((model_class_ohe, [input_grad_norm]), axis=0))
-            X.append(np.concatenate(([input_grad_norm], s), axis=0))
+            X.append(np.concatenate(([input_grad_norm], [synthetic_grad_norm], s), axis=0))
             y.append(model_ground_truth)
 
         X = np.array(X)
@@ -124,7 +128,8 @@ class Detector(AbstractDetector):
 
         logging.info("Training BaggingClassifier with GradientBoostingClassifier base estimator...")
         gb = GradientBoostingClassifier(n_estimators=100, max_depth=5, random_state=0)
-        model = BaggingClassifier(base_estimator=gb, n_estimators=500, random_state=0, n_jobs=-1)
+        pipe = make_pipeline(StandardScaler(), gb)
+        model = BaggingClassifier(base_estimator=pipe, n_estimators=500, random_state=0, n_jobs=-1)
         model.fit(X, y)
         logging.info("Training CalibratedClassifierCV...")
         calibrator = CalibratedClassifierCV(model, cv='prefit', method='sigmoid')
@@ -138,6 +143,30 @@ class Detector(AbstractDetector):
 
         self.write_metaparameters()
         logging.info("Configuration done!")
+
+    def get_synthetic_gradients(self, model):
+        """Returns the synthetic gradients for a given model.
+
+        Args:
+            model: torch.nn.Module - PyTorch model
+
+        Returns:
+            synthetic_gradients: np.ndarray - Synthetic gradients for the model
+        """
+        # Generate synthetic vectors of size 135
+        np.random.seed(42)
+        synthetic_gradients = np.random.normal(size=(1000, 135))
+
+        grads = []
+        # Compute the gradients for each synthetic vector
+        for i in range(synthetic_gradients.shape[0]):
+            model.zero_grad()
+            grads.append(jacobian(model, torch.tensor(synthetic_gradients[i], dtype=torch.float32, requires_grad=True)).numpy())
+
+        # Take the frobenius norm of the gradients
+        norm_grad = np.sum([np.linalg.norm(grad, ord='fro') for grad in grads])
+
+        return norm_grad
 
     def get_example_gradients(self, model, examples_dirpath):
         """Method to demonstrate how to extract gradients from a round's example data.
@@ -237,6 +266,9 @@ class Detector(AbstractDetector):
         # enc = joblib.load(join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         # Get example gradients
+        logging.info("Generating synthetic gradients...")
+        synthetic_grad_norm = self.get_synthetic_gradients(model)
+        logging.info("Generating example gradients...")
         input_grad = self.get_example_gradients(model, examples_dirpath)
         input_grad_norm = np.linalg.norm(input_grad, ord='fro')
         # model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
@@ -247,11 +279,12 @@ class Detector(AbstractDetector):
         else:
             layer_id = int(model_class[-2])
         
+        logging.info("Computing singular values...")
         weights = model_repr[f'fc{layer_id}.weight']
-        s = np.linalg.svd(weights, compute_uv=False)
+        s = np.linalg.svd(weights, compute_uv=False)[0:1]
 
         # concat the one hot encoded model class with the gradient score
-        Xtest = np.concatenate(([input_grad_norm], s), axis=0).reshape(1, -1)
+        Xtest = np.concatenate(([input_grad_norm], [synthetic_grad_norm], s), axis=0).reshape(1, -1)
 
         with open(self.model_filepath, "rb") as fp:
             classifier: CalibratedClassifierCV = pickle.load(fp)
