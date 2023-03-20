@@ -3,7 +3,7 @@
   "title": "Trojan Detection Container (trojai-example)",
   "technique": "Gradient Boosting Classifier with Bagging and Calibration",
   "technique_description": "Computes gradients wrt example data and synthetic data and singular values of last classification layer weights; trains a Gradient Boosting Classifer with Bagging and Calibration.",
-  "technique_changes": "Now using synthetic gradients + Using sigmoid calibration + Using bagging with gradient boosting trees + calibration + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
+  "technique_changes": "Add isotonic calibration + Now using synthetic gradients + Using sigmoid calibration + Using bagging with gradient boosting trees + calibration + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
   "technique_type": ["Weight Analysis", "Jacobian Inspection"],
   "commit_id": "d1f65f3b181d20c032640092c0b07de53f659ad2",
   "repo_name": "https://github.com/xinqiaozhang/adatrojan",
