@@ -98,7 +98,7 @@ class Detector(AbstractDetector):
         # enc.fit(np.array(sorted(model_repr_dict.keys())).reshape(-1, 1))
         X = []
         y = []
-        # synthetic_inputs = self.get_synthetic_inputs()
+        synthetic_inputs = self.get_synthetic_inputs()
 
         logging.info("Generating training data...")
         for model_dirpath in model_path_list:
@@ -107,7 +107,7 @@ class Detector(AbstractDetector):
                     )
             model_ground_truth = load_ground_truth(model_dirpath)
 
-            # synthetic_grad_norm = self.get_synthetic_gradients(synthetic_inputs, model)
+            synthetic_grad_norm = self.get_synthetic_gradients(synthetic_inputs, model)
             input_grad = self.get_example_gradients(model, join(model_dirpath, 'clean-example-data/'))
             input_grad_norm = np.mean(input_grad)
             if model_class[-1].isnumeric():
@@ -121,8 +121,8 @@ class Detector(AbstractDetector):
             # model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
             # concat the one hot encoded model class with the gradient score
             # X.append(np.concatenate((model_class_ohe, [input_grad_norm]), axis=0))
-            X.append(np.concatenate(([input_grad_norm], s), axis=0))
-            # X.append(np.concatenate(([input_grad_norm], [synthetic_grad_norm], s), axis=0))
+            # X.append(np.concatenate(([input_grad_norm], s), axis=0))
+            X.append(np.concatenate(([input_grad_norm], [synthetic_grad_norm], s), axis=0))
             y.append(model_ground_truth)
 
         X = np.array(X)
@@ -134,7 +134,7 @@ class Detector(AbstractDetector):
         model = BaggingClassifier(base_estimator=pipe, n_estimators=500, random_state=0, n_jobs=-1)
         model.fit(X, y)
         logging.info("Training CalibratedClassifierCV...")
-        calibrator = CalibratedClassifierCV(model, cv='prefit', method='isotonic')
+        calibrator = CalibratedClassifierCV(model, cv='prefit', method='sigmoid')
         calibrator.fit(X, y)
 
         logging.info("Saving model...")
@@ -272,13 +272,13 @@ class Detector(AbstractDetector):
         model, model_repr, model_class = load_model(model_filepath)
 
         # Load synthetic inputs
-        # synthetic_inputs = self.get_synthetic_inputs()
+        synthetic_inputs = self.get_synthetic_inputs()
         # Load ohe
         # enc = joblib.load(join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         # Get example gradients
         logging.info("Generating synthetic gradients...")
-        # synthetic_grad_norm = self.get_synthetic_gradients(synthetic_inputs, model)
+        synthetic_grad_norm = self.get_synthetic_gradients(synthetic_inputs, model)
         logging.info("Generating example gradients...")
         input_grad = self.get_example_gradients(model, examples_dirpath)
         input_grad_norm = np.mean(input_grad)
@@ -295,8 +295,8 @@ class Detector(AbstractDetector):
         s = np.linalg.svd(weights, compute_uv=False)[0:1]
 
         # concat the one hot encoded model class with the gradient score
-        # Xtest = np.concatenate(([input_grad_norm], [synthetic_grad_norm], s), axis=0).reshape(1, -1)
-        Xtest = np.concatenate(([input_grad_norm], s), axis=0).reshape(1, -1)
+        Xtest = np.concatenate(([input_grad_norm], [synthetic_grad_norm], s), axis=0).reshape(1, -1)
+        # Xtest = np.concatenate(([input_grad_norm], s), axis=0).reshape(1, -1)
 
         with open(self.model_filepath, "rb") as fp:
             classifier: CalibratedClassifierCV = pickle.load(fp)
