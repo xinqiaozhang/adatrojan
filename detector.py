@@ -98,6 +98,7 @@ class Detector(AbstractDetector):
         # enc.fit(np.array(sorted(model_repr_dict.keys())).reshape(-1, 1))
         X = []
         y = []
+        # synthetic_inputs = self.get_synthetic_inputs()
 
         logging.info("Generating training data...")
         for model_dirpath in model_path_list:
@@ -106,9 +107,9 @@ class Detector(AbstractDetector):
                     )
             model_ground_truth = load_ground_truth(model_dirpath)
 
-            # synthetic_grad_norm = self.get_synthetic_gradients(model)
+            # synthetic_grad_norm = self.get_synthetic_gradients(synthetic_inputs, model)
             input_grad = self.get_example_gradients(model, join(model_dirpath, 'clean-example-data/'))
-            input_grad_norm = np.linalg.norm(input_grad, ord='fro')
+            input_grad_norm = np.mean(input_grad)
             if model_class[-1].isnumeric():
                 layer_id = int(model_class[-1])
             else:
@@ -145,7 +146,21 @@ class Detector(AbstractDetector):
         self.write_metaparameters()
         logging.info("Configuration done!")
 
-    def get_synthetic_gradients(self, model):
+    def get_synthetic_inputs(self):
+        """Returns the synthetic input features"""
+        
+        synthetic_inputs_filepath = join(self.learned_parameters_dirpath, 'synthetic_inputs.npy')
+        if exists(synthetic_inputs_filepath):
+            inputs = np.load(synthetic_inputs_filepath)
+            return inputs
+        
+        np.random.seed(42)
+        inputs = np.random.normal(size=(20, 135))
+        np.save(synthetic_inputs_filepath, inputs)
+        return inputs
+    
+
+    def get_synthetic_gradients(self, synthetic_inputs, model):
         """Returns the synthetic gradients for a given model.
 
         Args:
@@ -154,15 +169,11 @@ class Detector(AbstractDetector):
         Returns:
             synthetic_gradients: np.ndarray - Synthetic gradients for the model
         """
-        # Generate synthetic vectors of size 135
-        np.random.seed(42)
-        synthetic_gradients = np.random.normal(size=(1000, 135))
-
         grads = []
         # Compute the gradients for each synthetic vector
-        for i in range(synthetic_gradients.shape[0]):
+        for i in range(synthetic_inputs.shape[0]):
             model.zero_grad()
-            grads.append(jacobian(model, torch.tensor(synthetic_gradients[i], dtype=torch.float32, requires_grad=True)).numpy())
+            grads.append(jacobian(model, torch.tensor(synthetic_inputs[i], dtype=torch.float32, requires_grad=True)).numpy())
 
         # Take the frobenius norm of the gradients
         norm_grad = np.sum([np.linalg.norm(grad, ord='fro') for grad in grads])
@@ -203,11 +214,8 @@ class Detector(AbstractDetector):
                 # loss.backward()
 
                 model.zero_grad()
-                pred = model(feature_vector)
-                pred[0, pred.argmax()].backward()
-
-                grad = feature_vector.grad
-                grad = grad.detach().numpy().reshape(-1)
+                jac = jacobian(model, feature_vector.reshape(-1)).numpy()
+                grad = np.linalg.norm(jac, ord='fro')
 
                 grads.append(grad)
                 # print(f"Gradient: {grad}")
@@ -263,15 +271,17 @@ class Detector(AbstractDetector):
         # Load model
         model, model_repr, model_class = load_model(model_filepath)
 
+        # Load synthetic inputs
+        # synthetic_inputs = self.get_synthetic_inputs()
         # Load ohe
         # enc = joblib.load(join(self.learned_parameters_dirpath, "ohe_encoder.bin"))
 
         # Get example gradients
         logging.info("Generating synthetic gradients...")
-        # synthetic_grad_norm = self.get_synthetic_gradients(model)
+        # synthetic_grad_norm = self.get_synthetic_gradients(synthetic_inputs, model)
         logging.info("Generating example gradients...")
         input_grad = self.get_example_gradients(model, examples_dirpath)
-        input_grad_norm = np.linalg.norm(input_grad, ord='fro')
+        input_grad_norm = np.mean(input_grad)
         # model_class_ohe = enc.transform(np.array([model_class]).reshape(-1, 1)).toarray()[0]
 
         # get layer id
