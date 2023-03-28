@@ -5,7 +5,7 @@
   "technique_description": "Computes gradients wrt example data and synthetic data and singular values of last classification layer weights; trains a Gradient Boosting Classifer with Bagging and Calibration.",
   "technique_changes": "using synthetic grads (20) + using isotonic calibration + using new method to compute jacobian + remove syngrad + Add isotonic calibration + Now using synthetic gradients + Using sigmoid calibration + Using bagging with gradient boosting trees + calibration + Using gradients with respect to input data and singular values of last classification layer weights instead of the previous method which just used last classification layer weights.",
   "technique_type": ["Weight Analysis", "Jacobian Inspection"],
-  "commit_id": "73f186deccc418f7fba372d2a465969f2b20fcdf",
+  "commit_id": "1a622e87db6d20b95fd69ed7d3bf97b9653d9469",
   "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
   "additionalProperties": false,
