@@ -134,7 +134,7 @@ class Detector(AbstractDetector):
         model = BaggingClassifier(base_estimator=pipe, n_estimators=500, random_state=0, n_jobs=-1)
         model.fit(X, y)
         logging.info("Training CalibratedClassifierCV...")
-        calibrator = CalibratedClassifierCV(model, cv='prefit', method='sigmoid')
+        calibrator = CalibratedClassifierCV(model, cv='prefit', method='isotonic')
         calibrator.fit(X, y)
 
         logging.info("Saving model...")
