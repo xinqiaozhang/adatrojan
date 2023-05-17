@@ -3,7 +3,7 @@
 	"title": "Meta Parameters for training Random Forest Classifier on top of weight analysis",
 	"technique": "Random Forest Classifier",
 	"technique_description": "Extracts singular values of model weights for RPN and final classifier (Faster RCNN) and trains a random forest classifier.",
-	"technique_changes": "Output metaparameter.json file after reconfiguration",
+	"technique_changes": "Perform weight analysis on Faster RCNN Models",
 	"technique_type": ["Weight Analysis"],
 	"commit_id": "5e2364005f15367897df05559ee3a04ba2858451",
 	"repo_name": "https://github.com/xinqiaozhang/adatrojan",
