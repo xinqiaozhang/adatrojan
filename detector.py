@@ -12,7 +12,7 @@ import jsonpickle
 import pickle
 import numpy as np
 
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier
 
 import utils.models
 from utils.abstract import AbstractDetector
@@ -149,12 +149,12 @@ class Detector(AbstractDetector):
             X.append([s_cls_logits, s_bbox_pred])
             y.append(model_ground_truth)
 
-        logging.info("Training RandomForestRegressor model.")
+        logging.info("Training RandomForestClassifier model.")
         # train random forest
         model = RandomForestClassifier(n_estimators=100, max_depth=4, random_state=42)
         model.fit(X, y)
 
-        logging.info("Saving RandomForestRegressor model...")
+        logging.info("Saving RandomForestClassifier model...")
         with open(self.model_filepath, "wb") as fp:
             pickle.dump(model, fp)
 
