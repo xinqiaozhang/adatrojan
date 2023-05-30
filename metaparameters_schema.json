@@ -5,7 +5,7 @@
 	"technique_description": "Extracts singular values of model weights for RPN and final classifier (Faster RCNN) and trains a random forest classifier.",
 	"technique_changes": "Perform weight analysis on Faster RCNN Models",
 	"technique_type": ["Weight Analysis"],
-	"commit_id": "292b36ded7f4deef4d0d36d92d747005f2113d7b",
+	"commit_id": "26fd3af61cb8899e17ab0bf5ae94f5e56e6e23ba",
 	"repo_name": "https://github.com/xinqiaozhang/adatrojan",
 	"required": [],
 	"additionalProperties": false,
