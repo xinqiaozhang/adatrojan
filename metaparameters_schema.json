@@ -5,7 +5,7 @@
 	"technique_description": "Extracts singular values of model weights for RPN and final classifier (Faster RCNN) and trains a random forest classifier.",
 	"technique_changes": "Removed the bug in the code that was not saving the model weights correctly.",
 	"technique_type": ["Weight Analysis"],
-	"commit_id": "26fd3af61cb8899e17ab0bf5ae94f5e56e6e23ba",
+	"commit_id": "b9f673c7b0195e8ce3f0406f4fd0f1916e263e3b",
 	"repo_name": "https://github.com/xinqiaozhang/adatrojan",
 	"required": [],
 	"additionalProperties": false,
