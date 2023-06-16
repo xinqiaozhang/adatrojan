@@ -13,14 +13,21 @@ import pickle
 import numpy as np
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn import svm
+from sklearn.feature_selection import RFECV
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.model_selection import cross_val_score, ShuffleSplit
 
 import utils.models
 from utils.abstract import AbstractDetector
-from utils.models import load_model, load_models_dirpath, load_ground_truth
+from utils.models import load_model, load_ground_truth
 
 import torch
 import torchvision
 import skimage.io
+from collections import defaultdict
+from tqdm import tqdm
 
 
 def center_to_corners_format(x):
@@ -102,6 +109,52 @@ class Detector(AbstractDetector):
         with open(os.path.join(self.learned_parameters_dirpath, os.path.basename(self.metaparameter_filepath)), "w") as fp:
             fp.write(jsonpickle.encode(metaparameters, warn=True, indent=2))
 
+    def cross_val_report(self, X, y, scoring='roc_auc'):
+        cv = ShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
+        SVM_model = svm.SVC(kernel='linear', C=1, random_state=42)
+        scores = cross_val_score(SVM_model, X, y, cv=cv, scoring=scoring)
+        print("SVM: %0.2f accuracy with a standard deviation of %0.2f" % (scores.mean(), scores.std()))
+
+        cv = ShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
+        RF_model = RandomForestClassifier(max_depth=5, n_estimators=200)
+        scores = cross_val_score(RF_model, X, y, cv=cv, scoring=scoring)
+        print("RF: %0.2f accuracy with a standard deviation of %0.2f" % (scores.mean(), scores.std()))
+
+    def svd_in_dim(self, weight, dim):
+        u, s, v = torch.svd(weight.reshape(weight.shape[dim], -1), compute_uv=False)
+        return s
+    
+    def get_features(self, model):
+        svd_list = []
+        for name, param in model.named_parameters():
+            weight = param.data
+            numdims = len(weight.shape)
+            if numdims > 1:
+                if numdims > 3:
+                    for mydim in range(numdims - 2):
+                        s = self.svd_in_dim(weight,mydim).detach().cpu().numpy()
+                        svd_list.extend([s[0],s[1],s[2]])
+                else:
+                    s = self.svd_in_dim(weight,0).detach().cpu().numpy()
+                    svd_list.extend([s[0],s[1],s[2]])
+        
+        return np.asarray(svd_list)
+
+    def load_models_dirpath(self, models_dirpath, training):
+        X = defaultdict(list)
+        Y = defaultdict(list)
+
+        for model_path in tqdm(models_dirpath):
+            model, model_repr, model_class = load_model(os.path.join(model_path, "model.pt"))
+            model_ground_truth = load_ground_truth(model_path)
+
+            feats = self.get_features(model)
+            X[model_class].append(feats)
+            if training:
+                Y[model_class].append(model_ground_truth)
+
+        return X, Y if training else X
+
     def automatic_configure(self, models_dirpath: str):
         """Configuration of the detector iterating on some of the parameters from the
         metaparameter file, performing a grid search type approach to optimize these
@@ -128,35 +181,41 @@ class Detector(AbstractDetector):
         model_path_list = sorted([os.path.join(models_dirpath, model) for model in os.listdir(models_dirpath)])
         logging.info(f"Loading %d models...", len(model_path_list))
 
-        X = []
-        y = []
-        for model_path in model_path_list:
-            model, model_repr, model_class = load_model(os.path.join(model_path, 'model.pt'))
-            model_ground_truth = load_ground_truth(model_path)
-            if model_class != 'FasterRCNN':
-                continue
-            cls_logits = model.rpn.head.cls_logits.weight.detach().cpu().numpy()[:, :, 0, 0]
-            bbox_pred = model.rpn.head.bbox_pred.weight.detach().cpu().numpy()[:, :, 0, 0]
-            cls_score_fastrcnn = model.roi_heads.box_predictor.cls_score.weight.detach().cpu().numpy()
-            bbox_pred_fastrcnn = model.roi_heads.box_predictor.bbox_pred.weight.detach().cpu().numpy()
-            # get first singular value of each weight matrix
-            s_cls_logits = np.linalg.svd(cls_logits, compute_uv=False)[0]
-            s_bbox_pred = np.linalg.svd(bbox_pred, compute_uv=False)[0]
-            s_cls_score_fastrcnn = np.linalg.svd(cls_score_fastrcnn, compute_uv=False)[0]
-            s_bbox_pred_fastrcnn = np.linalg.svd(bbox_pred_fastrcnn, compute_uv=False)[0]
-            print(f'{model_path}: {model_ground_truth}, {s_cls_logits}, {s_bbox_pred}, {s_cls_score_fastrcnn}, {s_bbox_pred_fastrcnn}')
-            # X.append([s_cls_logits, s_bbox_pred, s_cls_score_fastrcnn, s_bbox_pred_fastrcnn])
-            X.append([s_cls_logits, s_bbox_pred])
-            y.append(model_ground_truth)
+        X, Y = self.load_models_dirpath(model_path_list, training=True)
+        for model_class in X.keys():
+            X[model_class] = np.asarray(X[model_class])
+            Y[model_class] = np.asarray(Y[model_class])
+            
+            # standard scaling
+            scaler = StandardScaler()
+            X[model_class] = scaler.fit_transform(X[model_class])
 
-        logging.info("Training RandomForestClassifier model.")
-        # train random forest
-        model = RandomForestClassifier(n_estimators=100, max_depth=4, random_state=42)
-        model.fit(X, y)
+            clf = svm.SVC(kernel='linear', C=1, random_state=42)
+            rfecv = RFECV(estimator=clf, step=1, cv=5, scoring='roc_auc', min_features_to_select=10)
+            rfecv.fit(X[model_class], Y[model_class])
 
-        logging.info("Saving RandomForestClassifier model...")
-        with open(self.model_filepath, "wb") as fp:
-            pickle.dump(model, fp)
+            ## Get cv scores
+            print("Optimal number of features : %d" % rfecv.n_features_)
+            print(model_class)
+            self.cross_val_report(X[model_class][:, rfecv.support_], Y[model_class], scoring='accuracy')
+            
+            newfeats = X[model_class][:, rfecv.support_]
+
+            ## Fit model
+            clf = svm.SVC(kernel='linear', C=1, random_state=42, probability=True)
+            clf.fit(newfeats, Y[model_class])
+            calibrator = CalibratedClassifierCV(clf, method='sigmoid', cv='prefit')
+            calibrator.fit(newfeats, Y[model_class])
+            print(calibrator.score(newfeats, Y[model_class]))
+
+            # save model, scaler, rfecv
+            logging.info("Saving Model, Scaler, RFECV for %s...", model_class)
+            with open('{}/model_{}.pkl'.format(self.learned_parameters_dirpath, model_class), 'wb') as f:
+                pickle.dump(calibrator, f)
+            with open('{}/scaler_{}.pkl'.format(self.learned_parameters_dirpath, model_class), 'wb') as f:
+                pickle.dump(scaler, f)
+            with open('{}/rfecv_{}.pkl'.format(self.learned_parameters_dirpath, model_class), 'wb') as f:
+                pickle.dump(rfecv, f)
 
         self.write_metaparameters()
         logging.info("Configuration done!")
@@ -275,28 +334,26 @@ class Detector(AbstractDetector):
 
         # load the model
         model, model_repr, model_class = load_model(model_filepath)
-        if model_class != "FasterRCNN":
-            probability = 0.5
-        else:
-            cls_logits = model.rpn.head.cls_logits.weight.detach().cpu().numpy()[:, :, 0, 0]
-            bbox_pred = model.rpn.head.bbox_pred.weight.detach().cpu().numpy()[:, :, 0, 0]
-            cls_score_fastrcnn = model.roi_heads.box_predictor.cls_score.weight.detach().cpu().numpy()
-            bbox_pred_fastrcnn = model.roi_heads.box_predictor.bbox_pred.weight.detach().cpu().numpy()
-            # get first singular value of each weight matrix
-            s_cls_logits = np.linalg.svd(cls_logits, compute_uv=False)[0]
-            s_bbox_pred = np.linalg.svd(bbox_pred, compute_uv=False)[0]
-            s_cls_score_fastrcnn = np.linalg.svd(cls_score_fastrcnn, compute_uv=False)[0]
-            s_bbox_pred_fastrcnn = np.linalg.svd(bbox_pred_fastrcnn, compute_uv=False)[0]
-            X = [[s_cls_logits, s_bbox_pred]]
 
-            # load the RandomForest from the learned-params location
-            with open(self.model_filepath, "rb") as fp:
-                classifier: RandomForestClassifier = pickle.load(fp)
-            
-            # use the RandomForest to predict the trojan probability based on the feature vector X
-            probability = classifier.predict_proba(X)[0][1]
-            # clip the probability to reasonable values
-            probability = np.clip(probability, a_min=0.01, a_max=0.99)
+        feats = self.get_features(model)
+        X = [feats]
+
+        # load the scaler, rfecv, model
+        with open('{}/scaler_{}.pkl'.format(self.learned_parameters_dirpath, model_class), 'rb') as f:
+            scaler = pickle.load(f)
+        with open('{}/rfecv_{}.pkl'.format(self.learned_parameters_dirpath, model_class), 'rb') as f:
+            rfecv = pickle.load(f)
+        with open('{}/model_{}.pkl'.format(self.learned_parameters_dirpath, model_class), 'rb') as f:
+            classifier = pickle.load(f)
+        
+        # standard scaling
+        X = scaler.transform(X)
+        # feature selection
+        X = X[:, rfecv.support_]
+        # inference
+        probability = classifier.predict_proba(X)[0][1]
+        # clip the probability to reasonable values
+        probability = np.clip(probability, a_min=0.01, a_max=0.99)
 
         # write the trojan probability to the output file
         with open(result_filepath, "w") as fp:
