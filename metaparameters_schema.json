@@ -1,9 +1,9 @@
 {
 	"$schema": "http://json-schema.org/draft-07/schema#",
 	"title": "Meta Parameters for training Random Forest Classifier on top of weight analysis",
-	"technique": "Random Forest Classifier",
-	"technique_description": "Extracts singular values of model weights for RPN and final classifier (Faster RCNN) and trains a random forest classifier.",
-	"technique_changes": "Removed the bug in the code that was not saving the model weights correctly.",
+	"technique": "SVM Weight Analysis",
+	"technique_description": "Extracts singular values of all model weights and selects the important svd values to trains a SVM.",
+	"technique_changes": "Systematic weight analysis of all model weights.",
 	"technique_type": ["Weight Analysis"],
 	"commit_id": "b9f673c7b0195e8ce3f0406f4fd0f1916e263e3b",
 	"repo_name": "https://github.com/xinqiaozhang/adatrojan",
