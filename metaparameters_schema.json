@@ -3,7 +3,7 @@
 	"title": "Meta Parameters for training Random Forest Classifier on top of weight analysis",
 	"technique": "SVM Weight Analysis",
 	"technique_description": "Extracts singular values of all model weights and selects the important svd values to trains a SVM.",
-	"technique_changes": "Systematic weight analysis of all model weights.",
+	"technique_changes": "Using filtered modeled + systematic weight analysis of all model weights.",
 	"technique_type": ["Weight Analysis"],
 	"commit_id": "6511cd721cbefb70cfb3b2809d60869ef9497562",
 	"repo_name": "https://github.com/xinqiaozhang/adatrojan",
