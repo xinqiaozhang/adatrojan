@@ -5,7 +5,7 @@
 	"technique_description": "Extracts singular values of all model weights and selects the important svd values to trains a SVM.",
 	"technique_changes": "Using filtered modeled + systematic weight analysis of all model weights.",
 	"technique_type": ["Weight Analysis"],
-	"commit_id": "6511cd721cbefb70cfb3b2809d60869ef9497562",
+	"commit_id": "727d29f71f0760b871670c288f0d0b437a5688fe",
 	"repo_name": "https://github.com/xinqiaozhang/adatrojan",
 	"required": [],
 	"additionalProperties": false,
