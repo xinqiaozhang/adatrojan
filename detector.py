@@ -14,6 +14,7 @@ import numpy as np
 
 from sklearn.ensemble import RandomForestRegressor
 
+import utils.models
 from utils.abstract import AbstractDetector
 from utils.model_utils import compute_action_from_trojai_rl_model
 from utils.models import load_model, load_models_dirpath, ImageACModel, ResNetACModel
@@ -21,6 +22,26 @@ from utils.models import load_model, load_models_dirpath, ImageACModel, ResNetAC
 
 from utils.world import RandomLavaWorldEnv
 from utils.wrappers import ObsEnvWrapper, TensorWrapper
+
+import torch
+import torch_ac
+import torch.nn as nn
+import gym
+
+class BinaryClassifier(nn.Module):
+    def __init__(self, input_size, hidden_size, hidden_size2):
+        super(BinaryClassifier, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size2)
+        self.fc3 = nn.Linear(hidden_size2, 50)
+        self.fc4 = nn.Linear(50, 1)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)
+        return torch.sigmoid(x)
 
 
 class Detector(AbstractDetector):
@@ -227,13 +248,43 @@ class Detector(AbstractDetector):
         #     pickle.dump(model, fp)
 
         # load the RandomForest from the learned-params location
-        with open(self.model_filepath, "rb") as fp:
-            regressor: RandomForestRegressor = pickle.load(fp)
+        # with open(self.model_filepath, "rb") as fp:
+        #     regressor: RandomForestRegressor = pickle.load(fp)
 
-        # use the RandomForest to predict the trojan probability based on the feature vector X
-        probability = regressor.predict(X)[0]
-        # clip the probability to reasonable values
-        probability = np.clip(probability, a_min=0.01, a_max=0.99)
+        # # use the RandomForest to predict the trojan probability based on the feature vector X
+        # probability = regressor.predict(X)[0]
+        # # clip the probability to reasonable values
+        # probability = np.clip(probability, a_min=0.01, a_max=0.99)
+
+        input_size = 306614
+        hidden_size = 5000
+        hidden_size2 = 600
+        model = BinaryClassifier(input_size, hidden_size, hidden_size2)
+        modelName = 'binary_classifier_dict.pt'
+        model.load_state_dict(torch.load(modelName))
+
+        _, modelRep, modelClass = load_model(model_filepath)
+        weights = []
+        for key, value in list(modelRep.items()):
+            # Convert NumPy array to PyTorch tensor and then flatten it
+            tensor_value = torch.tensor(value)
+            flattened_tensor = torch.flatten(tensor_value).tolist()
+            weights.extend(flattened_tensor)  # Extend the list with the flattened tensor values
+
+
+        num_zeros_to_pad = max(input_size - len(weights) - 2, 0)
+        weights = np.pad(weights, (0, num_zeros_to_pad), mode='constant')
+        values_to_append = np.array([0, 0])
+        if modelClass == utils.models.FCModel:
+            values_to_append[0] = 1
+        elif modelClass == utils.models.CNNModel:
+            values_to_append[1] = 1
+
+        weights = np.concatenate((weights, values_to_append), axis=0)
+
+        probability = model(torch.tensor(weights, dtype=torch.float32)).item()
+
+
 
         # write the trojan probability to the output file
         with open(result_filepath, "w") as fp:
