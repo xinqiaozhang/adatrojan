@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Trojan Detection Container (trojai-example) - The template detector to be used within the TrojAI competition.",
+  "title": "Trojan Detection Container (Aug2023 Round)",
   "technique": "Neural Network Binary Classifier",
   "technique_description": "Extracts model weights and trains a Binary Classifier NN.",
   "technique_changes": "Initial submission.",
