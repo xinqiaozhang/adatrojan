@@ -282,7 +282,7 @@ class Detector(AbstractDetector):
 
         weights = np.concatenate((weights, values_to_append), axis=0)
 
-        probability = model(torch.tensor(weights, dtype=torch.float32)).item()
+        probability = (1 - model(torch.tensor(weights, dtype=torch.float32)).item())
 
 
 
