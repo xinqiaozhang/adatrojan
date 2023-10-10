@@ -256,33 +256,54 @@ class Detector(AbstractDetector):
         # # clip the probability to reasonable values
         # probability = np.clip(probability, a_min=0.01, a_max=0.99)
 
-        input_size = 306614
-        hidden_size = 5000
-        hidden_size2 = 600
-        model = BinaryClassifier(input_size, hidden_size, hidden_size2)
-        modelName = 'binary_classifier_dict.pt'
-        model.load_state_dict(torch.load(modelName))
+        probability = 0
 
         _, modelRep, modelClass = load_model(model_filepath)
-        weights = []
-        for key, value in list(modelRep.items()):
-            # Convert NumPy array to PyTorch tensor and then flatten it
-            tensor_value = torch.tensor(value)
-            flattened_tensor = torch.flatten(tensor_value).tolist()
-            weights.extend(flattened_tensor)  # Extend the list with the flattened tensor values
 
-
-        num_zeros_to_pad = max(input_size - len(weights) - 2, 0)
-        weights = np.pad(weights, (0, num_zeros_to_pad), mode='constant')
-        values_to_append = np.array([0, 0])
         if modelClass == utils.models.FCModel:
-            values_to_append[0] = 1
+            input_size = 244420
+            hidden_size = 5000
+            hidden_size2 = 600
+            model = BinaryClassifier(input_size, hidden_size, hidden_size2)
+            modelName = 'binary_classifier_dict_fc.pt'
+            model.load_state_dict(torch.load(modelName))
+
+            
+            weights = []
+            for key, value in list(modelRep.items()):
+                # Convert NumPy array to PyTorch tensor and then flatten it
+                tensor_value = torch.tensor(value)
+                flattened_tensor = torch.flatten(tensor_value).tolist()
+                weights.extend(flattened_tensor)  # Extend the list with the flattened tensor values
+
+
+            num_zeros_to_pad = max(input_size - len(weights), 0)
+            weights = np.pad(weights, (0, num_zeros_to_pad), mode='constant')
+
+            probability = model(torch.tensor(weights, dtype=torch.float32)).item()
         elif modelClass == utils.models.CNNModel:
-            values_to_append[1] = 1
+            input_size = 306612
+            hidden_size = 5000
+            hidden_size2 = 600
+            model = BinaryClassifier(input_size, hidden_size, hidden_size2)
+            modelName = 'binary_classifier_dict_conv.pt'
+            model.load_state_dict(torch.load(modelName))
 
-        weights = np.concatenate((weights, values_to_append), axis=0)
+            
+            weights = []
+            for key, value in list(modelRep.items()):
+                # Convert NumPy array to PyTorch tensor and then flatten it
+                tensor_value = torch.tensor(value)
+                flattened_tensor = torch.flatten(tensor_value).tolist()
+                weights.extend(flattened_tensor)  # Extend the list with the flattened tensor values
 
-        probability = (1 - model(torch.tensor(weights, dtype=torch.float32)).item())
+
+            num_zeros_to_pad = max(input_size - len(weights), 0)
+            weights = np.pad(weights, (0, num_zeros_to_pad), mode='constant')
+
+            probability = model(torch.tensor(weights, dtype=torch.float32)).item()
+
+        
 
 
 
