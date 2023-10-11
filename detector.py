@@ -265,7 +265,7 @@ class Detector(AbstractDetector):
             hidden_size = 5000
             hidden_size2 = 600
             model = BinaryClassifier(input_size, hidden_size, hidden_size2)
-            modelName = 'binary_classifier_dict_fc.pt'
+            modelName = '/binary_classifier_dict_fc.pt'
             model.load_state_dict(torch.load(modelName))
 
             
@@ -286,7 +286,7 @@ class Detector(AbstractDetector):
             hidden_size = 5000
             hidden_size2 = 600
             model = BinaryClassifier(input_size, hidden_size, hidden_size2)
-            modelName = 'binary_classifier_dict_conv.pt'
+            modelName = '/binary_classifier_dict_conv.pt'
             model.load_state_dict(torch.load(modelName))
 
             
