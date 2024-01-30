@@ -227,7 +227,8 @@ class Detector(AbstractDetector):
         # import pdb; pdb.set_trace()
 
         # print("logits: ", p)
-        tem_label = pd.read_csv(examples_dirpath[:-18]+'ground_truth.csv',header=None)[0][0]
+        
+        # tem_label = pd.read_csv(examples_dirpath[:-18]+'ground_truth.csv',header=None)[0][0]
         # if tem_label == 1:
         #     pdb.set_trace()
         # logging.warning("examples_dirpath: %s, label: %s, logits: %s", examples_dirpath, tem_label, p)
@@ -297,7 +298,7 @@ class Detector(AbstractDetector):
         )
         
         # if tem_label
-        tem_label = pd.read_csv(examples_dirpath[:-18]+'ground_truth.csv',header=None)[0][0]
+        # tem_label = pd.read_csv(examples_dirpath[:-18]+'ground_truth.csv',header=None)[0][0]
         
         probability = 0
         for kk in logits:
@@ -305,7 +306,7 @@ class Detector(AbstractDetector):
                 probability = 1
                 break
         # logging.warning('Failed to run regressor, there may have an issue during fitting, using random for trojan probability: {}'.format(e))
-        logging.warning("model: %s, predict: %s, label: %s, logits: %s", model_filepath[-20:], probability, tem_label, logits)
+        # logging.warning("model: %s, predict: %s, label: %s, logits: %s", model_filepath[-20:], probability, tem_label, logits)
         # if tem_label == 1:
         #     pdb.set_trace()
         # try:
