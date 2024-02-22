@@ -6,7 +6,7 @@
   "technique_changes": "N/A - initial submission",
   "technique_type": ["Weight Analysis"],
   "commit_id": "e21e53c0c285989a7fb6acff16a5052b63582f39",
-  "repo_name": "https://github.com/usnistgov/trojai-example",
+  "repo_name": "https://github.com/xinqiaozhang/adatrojan",
   "required": [],
   "additionalProperties": false,
   "type": "object",
