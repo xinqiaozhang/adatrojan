@@ -8,6 +8,7 @@ From: pytorch/pytorch:1.12.1-cuda11.3-cudnn8-runtime
     ./metaparameters.json /
     ./metaparameters_schema.json /
     ./learned_parameters /
+    ./regression_model.pkl /
 
 %post
     apt update
