@@ -27,6 +27,7 @@ from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
+from utils.customUtils import get_norm_std, get_mutual_coherence
 
 import torchvision
 
@@ -251,56 +252,55 @@ class Detector(AbstractDetector):
             round_training_dataset_dirpath:
         """
 
-        with open(self.model_layer_map_filepath, "rb") as fp:
-            model_layer_map = pickle.load(fp)
+        # with open(self.model_layer_map_filepath, "rb") as fp:
+        #     model_layer_map = pickle.load(fp)
 
-        # List all available model and limit to the number provided
-        model_path_list = sorted(
-            [
-                join(round_training_dataset_dirpath, 'models', model)
-                for model in listdir(join(round_training_dataset_dirpath, 'models'))
-            ]
-        )
-        logging.info(f"Loading %d models...", len(model_path_list))
+        # # List all available model and limit to the number provided
+        # model_path_list = sorted(
+        #     [
+        #         join(round_training_dataset_dirpath, 'models', model)
+        #         for model in listdir(join(round_training_dataset_dirpath, 'models'))
+        #     ]
+        # )
+        # logging.info(f"Loading %d models...", len(model_path_list))
+        # model_repr_dict, _ = load_models_dirpath(model_path_list)
+        # logging.info("Loaded models. Flattenning...")
 
-        model_repr_dict, _ = load_models_dirpath(model_path_list)
-        logging.info("Loaded models. Flattenning...")
+        # with open(self.models_padding_dict_filepath, "rb") as fp:
+        #     models_padding_dict = pickle.load(fp)
 
-        with open(self.models_padding_dict_filepath, "rb") as fp:
-            models_padding_dict = pickle.load(fp)
+        # for model_class, model_repr_list in model_repr_dict.items():
+        #     for index, model_repr in enumerate(model_repr_list):
+        #         model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
 
-        for model_class, model_repr_list in model_repr_dict.items():
-            for index, model_repr in enumerate(model_repr_list):
-                model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
+        # # Flatten model
+        # flat_models = flatten_models(model_repr_dict, model_layer_map)
+        # del model_repr_dict
+        # logging.info("Models flattened. Fitting feature reduction...")
 
-        # Flatten model
-        flat_models = flatten_models(model_repr_dict, model_layer_map)
-        del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
+        # layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
 
-        layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
+        model, modelDict, _ = load_model(model_filepath)
+        print(model_filepath)
+        arch = 0
+        if model.cnn_type == "ResNet34":
+            arch = 1
 
-        model, model_repr, model_class = load_model(model_filepath)
-        model_repr = pad_model(model_repr, model_class, models_padding_dict)
-        flat_model = flatten_model(model_repr, model_layer_map[model_class])
+        featureVal = [get_norm_std(modelDict['fc.weight'])] + [get_mutual_coherence(modelDict['fc.weight'])] + [arch]
 
         # Inferences on examples to demonstrate how it is done for a round
         # This is not needed for the random forest classifier
         self.inference_on_example_data(model, examples_dirpath)
 
-        X = (
-            use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
-            * self.model_skew["__all__"]
-        )
+        model_name = "regression_model.pkl"
+        
+            # with open(self.model_filepath, "rb") as fp:
+            #     regressor: RandomForestRegressor = pickle.load(fp)
+        with open(model_name, 'rb') as f:
+            regMod = pickle.load(f)
 
-        try:
-            with open(self.model_filepath, "rb") as fp:
-                regressor: RandomForestRegressor = pickle.load(fp)
-
-            probability = str(regressor.predict(X)[0])
-        except Exception as e:
-            logging.info('Failed to run regressor, there may have an issue during fitting, using random for trojan probability: {}'.format(e))
-            probability = str(np.random.rand())
+        probability = str(regMod.predict_proba([featureVal])[0][1])
+\
         with open(result_filepath, "w") as fp:
             fp.write(probability)
 
