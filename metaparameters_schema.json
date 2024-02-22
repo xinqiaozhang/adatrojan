@@ -5,7 +5,7 @@
   "technique_description": "Generate norm and angular values from penultimate layer and use as features.",
   "technique_changes": "N/A - initial submission",
   "technique_type": ["Weight Analysis"],
-  "commit_id": "",
+  "commit_id": "e21e53c0c285989a7fb6acff16a5052b63582f39",
   "repo_name": "https://github.com/usnistgov/trojai-example",
   "required": [],
   "additionalProperties": false,
