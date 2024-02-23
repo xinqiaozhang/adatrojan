@@ -292,7 +292,7 @@ class Detector(AbstractDetector):
         # This is not needed for the random forest classifier
         self.inference_on_example_data(model, examples_dirpath)
 
-        model_name = "regression_model.pkl"
+        model_name = "/regression_model.pkl"
         
             # with open(self.model_filepath, "rb") as fp:
             #     regressor: RandomForestRegressor = pickle.load(fp)
@@ -300,7 +300,7 @@ class Detector(AbstractDetector):
             regMod = pickle.load(f)
 
         probability = str(regMod.predict_proba([featureVal])[0][1])
-\
+
         with open(result_filepath, "w") as fp:
             fp.write(probability)
 
